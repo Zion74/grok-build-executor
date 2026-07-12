@@ -1,0 +1,36 @@
+[models]
+default = "grok-4.5"
+allowed_models = ["grok-4.5"]
+
+[cli]
+auto_update = false
+
+[session]
+load_envrc = false
+
+[tools]
+respect_gitignore = true
+
+[features]
+web_fetch = false
+tool_search = false
+
+[subagents]
+enabled = false
+
+[memory]
+enabled = false
+
+[compat.claude]
+skills = false
+rules = false
+agents = false
+mcps = false
+hooks = false
+
+[compat.cursor]
+skills = false
+rules = false
+agents = false
+mcps = false
+hooks = false

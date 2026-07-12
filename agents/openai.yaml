@@ -1,0 +1,6 @@
+interface:
+  display_name: "Grok Build Executor"
+  short_description: "Run bounded Grok 4.5 coding task cards safely"
+  default_prompt: "Use $grok-build-executor to run this approved task card in an isolated worktree and return test evidence."
+policy:
+  allow_implicit_invocation: false

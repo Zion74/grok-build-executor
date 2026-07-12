@@ -1,0 +1,26 @@
+# Secrets / local auth (never commit)
+auth.json
+**/auth.json
+*.pem
+*.key
+.env
+.env.*
+
+# Local executor runtime (user machine only)
+.grok-executor/
+logs/
+profile/
+task-cards/*.md
+!task-cards/README.md
+!examples/**
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node / skills tooling noise
+node_modules/
+skills-lock.json
