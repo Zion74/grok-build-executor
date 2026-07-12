@@ -1,13 +1,15 @@
 <!-- grok-build-executor:start -->
 # Grok Build as external executor
 
-When delegating implementation to **Grok 4.5** from Codex / GPT orchestrators:
+When delegating work to **Grok 4.5** from Codex / GPT orchestrators:
 
 1. **Do not** use native multi-agent / `spawn_agent` and claim the child is Grok.
-2. **Do** use `$grok-build-executor` after user approval of the task card.
-3. Write task cards only under `%USERPROFILE%\.grok-executor\task-cards\`.
-4. Invoke `scripts/invoke-grok-executor.ps1` with explicit writable paths / command prefixes and prefer `-RequireCleanIsolation`.
-5. Treat returned JSON `text` as a lead; independently `git diff` and re-run the acceptance command.
-6. Keep planning, merge, and completion authority on the orchestrator model.
-7. At most one concurrent Grok executor until concurrency is forward-tested.
+2. **Do** use `$grok-build-executor` after user approval of a **right-sized** task card.
+3. **Split large research/architecture work** into non-overlapping evidence cards before invoke; never one mega-card for whole-stack survey + all bugs + migration. See skill `references/task-sizing.md`.
+4. Write task cards only under `%USERPROFILE%\.grok-executor\task-cards\`.
+5. Invoke `scripts/invoke-grok-executor.ps1` with flags that match the card (`-ReadOnly`, `-AllowedCommandPrefix`, `-AllowWebSearch`, `-MaxTurns 60..80` for research) and prefer `-RequireCleanIsolation`.
+6. Use a long host shell timeout for research invokes (≥ 300s). Treat `stopReason: Cancelled` as failure even if exit code is 0; do not blind-retry—narrow or split.
+7. Treat returned JSON `text` as a lead; independently verify and re-run acceptance.
+8. Keep planning, merge, and completion authority on the orchestrator model.
+9. At most one concurrent Grok executor until concurrency is forward-tested.
 <!-- grok-build-executor:end -->

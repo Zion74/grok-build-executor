@@ -64,9 +64,12 @@ Full playbook: [`docs/CODING-AGENT-SETUP.md`](docs/CODING-AGENT-SETUP.md)
 ```text
 $grok-build-executor
 
-Write a self-contained task card under %USERPROFILE%\.grok-executor\task-cards\.
-Show it for my confirmation, then invoke the wrapper with -RequireCleanIsolation.
-After JSON returns, you must git diff + re-run the acceptance command yourself.
+Write a self-contained, right-sized task card under %USERPROFILE%\.grok-executor\task-cards\.
+If the work is multi-domain research/architecture, split into evidence cards first
+(see references/task-sizing.md). Show cards for confirmation, then invoke with
+-RequireCleanIsolation (research: -ReadOnly -AllowedCommandPrefix git -MaxTurns 80,
+host timeout >= 300s). After JSON returns, require stopReason=EndTurn; git diff +
+re-run acceptance yourself. Never treat Cancelled + short preamble as success.
 ```
 
 Or with routing:
