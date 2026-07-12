@@ -1,153 +1,94 @@
 # grok-build-executor
 
-**Let Codex (GPT‑5.6 Sol) orchestrate. Let Grok 4.5 execute — safely.**
+**Codex (GPT‑5.6 Sol) plans and accepts. Grok 4.5 executes — via documents or a hardened CLI.**
 
-OpenAI Codex multi-agent cannot spawn Grok models. This skill bridges them with the **official Grok Build headless CLI** + SuperGrok OAuth, behind a hard allowlist wrapper.
+OpenAI Codex multi-agent cannot spawn Grok models. This skill documents two battle-tested bridges:
 
 ```text
-You → Codex gpt-5.6-sol → task card → invoke-grok-executor.ps1
-     → grok -p (grok-4.5, dontAsk, scoped) → JSON envelope → Sol verifies
+Mode A (preferred for product work)
+  Sol → grok-agent-jobs/.../PROMPT.md
+      → human opens in Grok Build (optional 总控 + subagents)
+      → RESULT.md on disk
+      → Sol re-diff + re-test → merge
+
+Mode B (micro / automated)
+  Sol → task card + invoke-grok-executor.ps1
+      → grok-4.5 headless (isolated SuperGrok OAuth, allowlists)
+      → JSON envelope → Sol verifies
 ```
 
-## Install (humans)
+Field notes, pitfalls, and anti-patterns: **[docs/COLLABORATION.md](docs/COLLABORATION.md)**  
+X drafts: **[docs/X-PROMO.md](docs/X-PROMO.md)**
 
-### 1. Install the skill
+## Install
 
 ```bash
 npx skills add Zion74/grok-build-executor -g -y
 ```
 
-Or:
-
-```bash
-npx skills add https://github.com/Zion74/grok-build-executor -g -y
-```
-
-### 2. Install Grok Build CLI
-
-Follow [xAI / Grok Build docs](https://docs.x.ai/). You need the `grok` binary on PATH (Windows: typically `%USERPROFILE%\.grok\bin\grok.exe`).
-
-### 3. One-shot executor setup
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File `
-  "$HOME\.agents\skills\grok-build-executor\scripts\install-executor.ps1"
-```
-
-### 4. SuperGrok OAuth (human browser)
-
-```powershell
-$env:GROK_HOME = "$HOME\.grok-executor"
-grok login
-grok models   # must show grok-4.5
-```
-
-> Interactive Grok stays in `~/.grok`. The executor uses a **separate** home: `~/.grok-executor`.
-
-## Install (coding agents)
-
-Paste this into Codex / Claude Code / Cursor:
-
-```text
-Install and configure https://github.com/Zion74/grok-build-executor
-Follow docs/CODING-AGENT-SETUP.md exactly.
-Run scripts/install-executor.ps1.
-Stop for human OAuth when asked.
-Never print or commit credentials / auth files.
-Then show me a minimal smoke plan.
-```
-
-Full playbook: [`docs/CODING-AGENT-SETUP.md`](docs/CODING-AGENT-SETUP.md)
+Headless Mode B also needs Grok Build CLI + SuperGrok OAuth into `~/.grok-executor` — see [docs/CODING-AGENT-SETUP.md](docs/CODING-AGENT-SETUP.md) and `scripts/install-executor.ps1`.
 
 ## Use in Codex
+
+### Mode A — document handoff (default for real slices)
 
 ```text
 $grok-build-executor
 
-Write a self-contained, right-sized task card under %USERPROFILE%\.grok-executor\task-cards\.
-If the work is multi-domain research/architecture, split into evidence cards first
-(see references/task-sizing.md). Show cards for confirmation, then invoke with
--RequireCleanIsolation (research: -ReadOnly -AllowedCommandPrefix git -MaxTurns 80,
-host timeout >= 300s). After JSON returns, require stopReason=EndTurn; git diff +
-re-run acceptance yourself. Never treat Cancelled + short preamble as success.
+Create a job under D:\Projects\grok-agent-jobs\<project>\<job-id>\
+with PROMPT.md (and MAIN_AGENT_PROMPT.md for me). Exclusive writable files,
+forbidden git ops, acceptance commands, RESULT path outside the product repo.
+I will ask the human to run PROMPT in Grok Build. When RESULT.md exists I will
+re-review the full diff and re-run tests myself—never trust Grok “ok” alone.
 ```
 
-Or with routing:
+Templates: `examples/job-folder.template/`.
+
+### Mode B — headless wrapper (small clean worktrees)
 
 ```text
-$agentic-delivery
-# when a slice is Grok-shaped, delegate via $grok-build-executor
+$grok-build-executor
+
+Right-sized task card under %USERPROFILE%\.grok-executor\task-cards\.
+Split multi-domain research first (references/task-sizing.md).
+Invoke with -RequireCleanIsolation; research: -ReadOnly -AllowedCommandPrefix git
+-MaxTurns 80 and host timeout >= 300s. Require stopReason=EndTurn.
 ```
 
-### Invoke shape
+## What failed before (short)
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File `
-  "$HOME\.agents\skills\grok-build-executor\scripts\invoke-grok-executor.ps1" `
-  -TaskCardPath "$HOME\.grok-executor\task-cards\my-task.md" `
-  -WorkingDirectory "D:\path\to\clean-worktree" `
-  -WritablePath "src/feature/**" `
-  -AllowedCommandPrefix "npm test --" `
-  -RequireCleanIsolation
-```
-
-## What comes back
-
-Stdout JSON envelope (example fields):
-
-```json
-{
-  "ok": true,
-  "stopReason": "EndTurn",
-  "model": "grok-4.5",
-  "text": "…natural language summary…",
-  "changedFiles": ["src/foo.ts"],
-  "scopeViolations": [],
-  "resultLog": "…/.grok-executor/logs/executor/….result.json"
-}
-```
-
-- **`text`** = lead, not evidence  
-- **Truth** = git diff in the worktree + orchestrator-run tests  
-
-## Safety model
-
-| Control | Default |
+| Approach | Failure |
 |---|---|
-| Model | `grok-4.5` only |
-| Nested Grok subagents | off |
-| Memory / plan mode | off |
-| Web search | off unless opt-in |
-| Permission mode | `dontAsk` + explicit `--allow` |
-| Task cards | only under `~/.grok-executor/task-cards/` |
-| Concurrency | single process mutex |
-| Implicit skill fire | disabled (`allow_implicit_invocation: false`) |
+| Raw `grok -p` / `--yolo` | No ownership; unsafe dirty trees |
+| PowerShell `Start-Process` / bad quoting | Args split (`node --test` → `-test`); instant abort |
+| One mega headless card | `stopReason: Cancelled`, useless preamble |
+| Missing allow prefixes / web | Silent `dontAsk` denials |
+| Short Codex `timeout_ms` | Mid-run kill looks like Cancelled |
+| Project `.mcp.json` Figma | 30s×N init timeouts |
+| Trusting Grok RESULT as done | Missed regressions outside the slice |
+
+Details in [docs/COLLABORATION.md](docs/COLLABORATION.md).
 
 ## Repo layout
 
 ```text
-SKILL.md                      # agent skill entry
-agents/openai.yaml            # Codex UI metadata
-assets/config.toml            # isolated executor config template
-scripts/install-executor.ps1  # first-time setup
+SKILL.md
+agents/openai.yaml
+assets/config.toml              # isolated headless home template
+scripts/install-executor.ps1
 scripts/invoke-grok-executor.ps1
+references/task-sizing.md       # split mega headless cards
+docs/COLLABORATION.md           # dual-mode + failure log (share this)
 docs/CODING-AGENT-SETUP.md
-docs/ARCHITECTURE.md
-examples/task-card.template.md
+docs/X-PROMO.md
+examples/job-folder.template/   # PROMPT + MAIN_AGENT_PROMPT
+examples/task-card.template.md  # Mode B cards
 examples/AGENTS.md.snippet
 ```
 
-## Requirements
+## Safety
 
-- Windows (primary; PowerShell wrapper)
-- [Grok Build CLI](https://docs.x.ai/) + SuperGrok-capable account
-- Codex CLI / ChatGPT Codex (or any agent that can run shell + skills)
-- Git
-
-## License
-
-MIT — see [LICENSE](LICENSE)
-
-## Disclaimer
-
-Not affiliated with xAI or OpenAI. You are responsible for OAuth credentials, code changes Grok makes, and review gates. The wrapper reduces blast radius; it does not remove the need for human judgment on merges.
+- No secrets in prompts/results committed to product repos
+- Exclusive file ownership for parallel Grok writers
+- Sol always re-verifies
+- MIT licensed; not affiliated with xAI or OpenAI

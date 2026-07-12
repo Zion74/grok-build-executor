@@ -1,67 +1,69 @@
 # X / Twitter promo drafts
 
-Copy-paste ready. **No personal paths, tokens, or private screenshots.**
-
-Replace nothing required — repo is `https://github.com/Zion74/grok-build-executor`.
+Repo: https://github.com/Zion74/grok-build-executor  
+Deep dive: `docs/COLLABORATION.md`
 
 ---
 
-## 中文短帖（推荐主帖）
+## 中文主帖（推荐）
 
 ```text
 Codex 原生子 agent 调不了 Grok。
 
-我开源了一个 skill：让 GPT‑5.6 Sol 当总控，Grok 4.5 当受控执行器。
+我们踩完坑后的稳定配合：
 
-链路：
-任务卡 → 官方 Grok Build headless → 作用域 allowlist → JSON 回传 → Sol 自己验收
+① Codex(Sol) 写 job 目录
+   PROMPT.md → 人类/Grok Build 打开
+   RESULT.md → Sol 亲审 diff + 重跑测试
 
-- SuperGrok OAuth（隔离 ~/.grok-executor）
-- 禁止伪装成 native spawn
-- coding agent 可按文档一键配置
+② 需要并行时：Grok 总控 + 不重叠 ownership 的子 agent
+③ 小任务才用 headless CLI wrapper（隔离 SuperGrok OAuth）
+
+CLI/PS 直调 grok.exe 的坑也写了：参数被拆、Cancelled、超时、项目 .mcp.json 拖 Figma…
 
 GitHub: https://github.com/Zion74/grok-build-executor
-
-安装：
-npx skills add Zion74/grok-build-executor -g -y
+docs/COLLABORATION.md
 ```
 
 ---
 
-## 中文长帖 / 线程 1/3
+## 中文线程
+
+**1/3**
 
 ```text
-1/ 很多人想「Sol 规划 + Grok 干活」，但 Codex multi-agent 模型列表里没有 Grok。
+想「Sol 规划 + Grok 干活」别硬 spawn。
 
-正确姿势不是硬 spawn，而是：
-Skill + 官方 Grok Build CLI headless。
+现在更稳的是「文档交接」：
+job 文件夹里 PROMPT / RESULT，
+Grok Build 交互执行（可总控多 subagent），
+Codex 只负责边界和验收。
 ```
 
-## 线程 2/3
+**2/3**
 
 ```text
-2/ 我把安全默认值写进 wrapper：
+我们用 headless CLI 踩过的坑：
 
-• 固定 grok-4.5
-• dontAsk + 路径/命令 allowlist
-• 关 nested subagents / memory / plan
-• 任务卡只能写在 executor 目录
-• 返回 JSON：ok / changedFiles / text…
+• PowerShell 把 node --test 拆成 -test
+• 超大任务卡 stopReason=Cancelled（exit 0 也算失败）
+• dontAsk 没给 git 前缀 → 静默拒绝
+• Codex timeout 掐死长任务
+• 项目 .mcp.json 的 Figma MCP 空等 30s
 
-text 只是线索；diff + 测试由 Sol 复验。
+所以大改动改走 PROMPT→RESULT 文件协议。
 ```
 
-## 线程 3/3
+**3/3**
 
 ```text
-3/ 给 coding agent 的安装话术也写好了（docs/CODING-AGENT-SETUP.md）。
-
-仓库：
-https://github.com/Zion74/grok-build-executor
+Skill + 协议文档开源了：
 
 npx skills add Zion74/grok-build-executor -g -y
 
-欢迎 issue / PR。不隶属于 xAI 或 OpenAI。
+读 docs/COLLABORATION.md
+欢迎 PR / 补充失败案例。
+不隶属 xAI / OpenAI。
 ```
 
 ---
@@ -69,21 +71,22 @@ npx skills add Zion74/grok-build-executor -g -y
 ## English short
 
 ```text
-Codex can’t natively spawn Grok models.
+Codex can’t natively spawn Grok.
 
-Open-source skill: GPT‑5.6 Sol orchestrates, Grok 4.5 executes via official Grok Build headless + SuperGrok OAuth.
+What worked for us:
+• Sol writes PROMPT.md in a job folder
+• Human runs it in Grok Build (optional coordinator + exclusive subagents)
+• Grok writes RESULT.md
+• Sol re-diff + re-test (never trust Grok “ok”)
 
-Task card → scoped allowlist → JSON envelope → orchestrator re-verifies.
+Headless CLI only for tiny clean-worktree cards.
 
+Lessons from CLI/PS failures → docs/COLLABORATION.md
 https://github.com/Zion74/grok-build-executor
-
-npx skills add Zion74/grok-build-executor -g -y
 ```
 
 ---
 
-## Hashtag suggestions (optional, light)
+## Hashtags (optional)
 
-`#Codex #Grok #GrokBuild #AICoding #AgentSkills #SuperGrok`
-
-Avoid engagement-bait screenshots that show email, machine username, or token fragments.
+`#Codex #Grok #GrokBuild #AgentSkills #AICoding`

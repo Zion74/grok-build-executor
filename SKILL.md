@@ -1,119 +1,103 @@
 ---
 name: grok-build-executor
-description: Execute a user-approved, bounded software task card with the official Grok Build CLI (Grok 4.5) over SuperGrok OAuth. Use when Codex / GPT-5.6 should delegate implementation or scoped research to Grok as an external executor; also when sizing or splitting large Grok work to avoid Cancelled runs; also to install, smoke-test, or diagnose the local Grok executor integration.
+description: Coordinate GPT/Codex with Grok 4.5 as an external executor—prefer document handoff (PROMPT/RESULT job folders + interactive Grok or Grok 总控 agent); optionally use the headless SuperGrok CLI wrapper for small clean-worktree cards. Use when delegating implementation or research to Grok, sizing/splitting work to avoid Cancelled runs, recovering from CLI/PowerShell failures, or installing and diagnosing the local executor.
 ---
 
 # Grok Build Executor
 
-Treat **Grok 4.5** as an external executor, never as the delivery orchestrator. Keep planning, task sizing, acceptance, integration, and completion authority with the calling agent (typically Codex **`gpt-5.6-sol`**).
+Treat **Grok 4.5** as an **executor**, not the delivery owner. The calling agent (typically Codex **`gpt-5.6-sol`**) keeps planning, risk calls, merge/complete authority, and **independent verification**.
 
-Codex native `spawn_agent` / multi-agent **cannot** select Grok models. Always use this skill + the official Grok Build headless CLI. Do not pretend Grok is a native Codex subagent.
+Codex native multi-agent **cannot** select Grok models. Integration is always external:
 
-## First-time setup (coding agents)
+| Mode | Mechanism | Prefer when |
+|---|---|---|
+| **A. Document handoff** | Job folder `PROMPT.md` → human opens in **Grok Build UI** (optional Grok 总控 + subagents) → `RESULT.md` → Sol re-verifies | Real product slices, dirty trees, multi-file ownership, long builds, parallel Grok subagents |
+| **B. Headless CLI** | `invoke-grok-executor.ps1` + task card under `~/.grok-executor/task-cards/` | Micro edits / smoke / narrow read-only evidence on a **clean** worktree |
 
-If the user asks to install or configure this skill, follow `docs/CODING-AGENT-SETUP.md` and run:
+**Field default for product work: Mode A.** Mode B remains for automation and isolation-hardened micro jobs.
+
+Full narrative + failure history for GitHub/X: **`docs/COLLABORATION.md`**.
+
+---
+
+## Mode A — Document handoff (preferred)
+
+### Layout
+
+```text
+grok-agent-jobs/<project>/<job-id>/
+  PROMPT.md                 # Grok executes this
+  RESULT.md                 # Grok writes this
+  MAIN_AGENT_PROMPT.md      # optional: Sol post-review checklist
+  PROMPT-01.md / RESULT-01.md   # optional exclusive sub-slices
+```
+
+Templates: `examples/job-folder.template/`.
+
+Practice root example:
+
+```text
+D:\Projects\grok-agent-jobs\<project>\<YYYYMMDD-HHMM-slug>\
+```
+
+Never store job notes inside the product git tree.
+
+### Orchestrator (Sol) steps
+
+1. Create the job folder; write `PROMPT.md` with **exclusive writable paths**, forbidden ops, acceptance commands, and exact `RESULT.md` path.
+2. For multi-slice work, either:
+   - multiple job folders, or
+   - one **orchestrator** `PROMPT.md` that points at child `PROMPT-0N.md` files with **non-overlapping** ownership and a parent `RESULT.md`.
+3. Ask the human to start Grok Build on `PROMPT.md` (paste or open file). Do **not** block forever—if RESULT never appears, offer to implement yourself.
+4. When the human reports done (or RESULT mtime updates), read `RESULT.md` as **untrusted**.
+5. Personally review full scoped diff; re-run every acceptance command; only then accept.
+6. Grok UI windows may be closed once RESULT + code are on disk.
+
+### Grok 总控 pattern
+
+When one interactive Grok coordinates several subagents:
+
+- Preflight each child: if `RESULT-0N.md` exists → validate only; if sources dirty without RESULT → treat in-flight, **do not** spawn a second writer.
+- Exclusive ownership sets must not overlap.
+- Parent writes aggregate `RESULT.md` with status matrix + command logs.
+- Sol still re-verifies; never trust Grok “ok” alone.
+
+### Gate for Mode A
+
+1. User approved the job boundary (or standing authority for this goal).
+2. `PROMPT.md` is complete and right-sized (split multi-domain work across jobs/children).
+3. Product dirty tree is acknowledged; unrelated changes must be preserved.
+4. RESULT path is outside product repo.
+
+---
+
+## Mode B — Headless CLI wrapper
+
+Use only after Mode A is a poor fit (unattended micro card, isolation smoke).
+
+### Setup
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File `
   "<this-skill>/scripts/install-executor.ps1"
+# human: GROK_HOME=~/.grok-executor ; grok login
 ```
 
-Human must complete SuperGrok OAuth once:
+### Task cards
 
-```powershell
-$env:GROK_HOME = "$HOME\.grok-executor"
-grok login
+```text
+~/.grok-executor/task-cards/<run-id>.md
 ```
 
-## Gate the delegation
+Right-size before invoke—mega research cards often end as `stopReason: Cancelled`. Details: **`references/task-sizing.md`**.
 
-Do not invoke the executor until every condition is true:
-
-1. The user approved this exact Grok task, model, scope, and evidence contract.
-2. The task card is **right-sized** (see [Task sizing](#task-sizing-split-large-work-before-invoke)) and self-contained (not the parent transcript).
-3. Working directory is a **clean** isolated Git worktree owned by the same Windows user as the executor OAuth session.
-4. Writable paths and/or allowed command prefixes match what the card actually needs.
-5. Until concurrency is forward-tested, run only **one** Grok executor process.
-
-If any condition is false, fix the card or return to the orchestrator workflow; do not weaken the wrapper.
-
-## Task sizing: split large work before invoke
-
-**One headless run is a bounded worker, not a full research program.**
-
-Forward-tested pattern:
-
-| Shape | Typical outcome |
-|---|---|
-| Monolithic "survey whole agent stack + all bugs + target arch + migration" | Often `stopReason: Cancelled` with only a short preamble; `ok: false` |
-| Several **evidence-domain** cards (topology / one bug family / target seams / external-doc fit) | Often `EndTurn` with usable multi-KB `text` |
-
-### Must split when
-
-- Many subsystems must be traced in one go
-- Deliverable is multi-chapter (status + root causes + target design + roadmap)
-- Card needs both deep local evidence **and** official external docs
-- Acceptance cannot be stated as one cheap command or a short checklist
-- Expected tool-heavy runtime is clearly longer than a few minutes
-
-### Orchestrator procedure
-
-1. Freeze baseline SHA + clean worktree once.
-2. Partition by **non-overlapping evidence domains** (paths + questions), not by report headings alone.
-3. Write one task card per domain under `~/.grok-executor/task-cards/`.
-4. Invoke **serially** (mutex) unless concurrency is later proven.
-5. On each result: require `ok: true` and `stopReason: EndTurn`; keep logs.
-6. **Synthesize** across cards yourself; never ask Grok to "remember" prior runs.
-7. On `Cancelled`: **do not** blind-retry the same card—narrow, re-flag tools, raise `-MaxTurns`, or split further.
-
-Load the full playbook, presets, and failure signatures from:
-
-**`references/task-sizing.md`**
-
-### Research / architecture invoke preset
+### Invoke
 
 ```powershell
 $skill = "$HOME\.agents\skills\grok-build-executor"
 powershell -NoProfile -ExecutionPolicy Bypass -File `
   "$skill\scripts\invoke-grok-executor.ps1" `
   -TaskCardPath "$HOME\.grok-executor\task-cards\<card>.md" `
-  -WorkingDirectory "<clean-isolated-worktree>" `
-  -ReadOnly `
-  -AllowedCommandPrefix "git" `
-  -MaxTurns 80 `
-  -RequireCleanIsolation
-# -AllowWebSearch only if the card names external evidence gaps
-```
-
-Host orchestrator shell **`timeout_ms` should be ≥ 300000** (prefer 600000) for research cards. A 60–120s host timeout will look like random `Cancelled` failures.
-
-## Runtime layout
-
-| Path | Purpose |
-|---|---|
-| `~/.grok-executor` | Isolated `GROK_HOME` (OAuth + executor config) |
-| `~/.grok-executor/task-cards/` | **Only** place for task card files |
-| `~/.grok` | Interactive Grok (leave alone) |
-| `scripts/invoke-grok-executor.ps1` | Safe headless wrapper |
-| `references/task-sizing.md` | Split / sizing detail |
-
-Confirm readiness:
-
-```powershell
-$env:GROK_HOME = "$HOME\.grok-executor"
-grok models   # must list grok-4.5
-```
-
-## Execute one task card
-
-```powershell
-$card = "$HOME\.grok-executor\task-cards\$(Get-Date -Format 'yyyyMMdd-HHmmss')-task.md"
-# write approved task card to $card, then:
-
-$skill = "$HOME\.agents\skills\grok-build-executor"
-powershell -NoProfile -ExecutionPolicy Bypass -File `
-  "$skill\scripts\invoke-grok-executor.ps1" `
-  -TaskCardPath $card `
   -WorkingDirectory "<clean-isolated-worktree>" `
   -WritablePath "src/feature/**" `
   -AllowedCommandPrefix "npm test --" `
@@ -122,68 +106,53 @@ powershell -NoProfile -ExecutionPolicy Bypass -File `
 
 | Flag | When |
 |---|---|
-| `-ReadOnly` | Evidence-only; no writable paths |
-| `-AllowedCommandPrefix` | Any shell need (`git`, `node --test`, …). Read-only default is **Read+Grep only** |
-| `-AllowWebSearch` | Card names an external evidence gap |
-| `-MaxTurns N` | Default 40; use **60–80** for research cards |
-| `-RequireCleanIsolation` | Prefer on; fail if personal skill/claude sources leak |
-| `-AllowExternalTaskCard` | Diagnostics only |
+| `-ReadOnly` | Evidence-only |
+| `-AllowedCommandPrefix` | Any shell (`git`, tests). Default allow is **Read+Grep only** |
+| `-AllowWebSearch` | Card names external evidence |
+| `-MaxTurns N` | Default 40; research often **60–80** |
+| `-RequireCleanIsolation` | Prefer on |
 
-### Wrapper guarantees
+Research preset: `-ReadOnly -AllowedCommandPrefix git -MaxTurns 80` and host **`timeout_ms` ≥ 300000**.
 
-- Model fixed to **`grok-4.5`**
-- `--no-subagents --no-memory --no-plan`
-- `dontAsk` + edit/shell allowlists + destructive denials
-- Isolated OS profile (shadow `HOME`/`USERPROFILE`) so personal `~/.agents` skills are not inherited
-- Clean worktree required; post-run scope check + `git diff --check`
-- Structured JSON envelope on stdout (no Grok reasoning field)
+### Success envelope
 
-### What the orchestrator receives
+`ok: true` requires `stopReason == EndTurn` (not `Cancelled`), no scope violations, diff check clean. JSON `text` is a lead only.
 
-Stdout JSON (also under `~/.grok-executor/logs/executor/`):
+---
 
-| Field | Meaning |
+## Choosing mode (quick)
+
+| Job | Mode |
 |---|---|
-| `ok` | Wrapper success (`EndTurn` + scope + diff check) |
-| `stopReason` | Must be **`EndTurn`**. **`Cancelled` = failure** even if `exitCode` is 0 |
-| `model` | `grok-4.5` |
-| `text` | Narrative report (**lead, not evidence**) |
-| `changedFiles` | Paths touched |
-| `scopeViolations` | Outside allowlist |
-| `resultLog` / `stderrLog` | On-disk logs |
+| Multi-file product fix, dirty tree, ownership across modules | **A** |
+| Grok 总控 + 2–3 writer subagents | **A** |
+| Docker/long build inside Grok | **A** |
+| Clean worktree one-liner / smoke / tiny read-only card | **B** |
+| Unattended CI-style micro task with SuperGrok OAuth | **B** (tight allowlists) |
 
-After success, the orchestrator **must** independently `git diff` / re-read cited paths and re-run acceptance commands.
+---
 
-## Diagnose `Cancelled` and other failures
+## Failure lessons (summary)
 
-| Observation | Action |
-|---|---|
-| `stopReason: Cancelled`, short preamble | Card too large or tools denied → split / fix allows / raise `-MaxTurns` + host timeout |
-| Cancels ~1–2 min with almost no progress | Raise orchestrator `timeout_ms`; ensure research preset |
-| Needs `git`/`tests` but no prefix | Add `-AllowedCommandPrefix` |
-| Needs official docs but no web | Add `-AllowWebSearch` **or** remove that requirement from the card |
-| Same card cancelled twice | Stop retrying; split or hand back to orchestrator |
+Publishable detail: **`docs/COLLABORATION.md`**.
 
-Preserve worktree and logs; do not silently retry identical cards.
+1. **PowerShell / `grok.exe` quoting** — `Start-Process` and bad splits turn `node --test` into fake `-test` params; prefer Mode A or a single carefully quoted wrapper call.
+2. **Headless mega-cards** — full-stack surveys → frequent `Cancelled` + short preamble; split evidence domains.
+3. **`dontAsk` without tool prefixes** — silent deny loops.
+4. **Host shell timeouts** — 60–120s kills real work mid-run.
+5. **Project `.mcp.json` (e.g. Figma)** — still loaded when Claude/Cursor MCP compat is off; strip unused servers.
+6. **Skill catalog miss** — files exist but `$skill` not listed; use explicit paths / restart.
+7. **Policy** — Codex may be blocked from shipping private source into external headless automation; human-started Grok already on disk is cleaner.
+8. **Duplicate writers** — always exclusive file sets + RESULT preflight.
+9. **Trust** — slice green ≠ product green; Sol re-runs expanded suites.
 
-## Windows / Codex sandbox notes
-
-Codex host sandbox only needs to run the wrapper + network for OAuth/API. **Blast radius control is the wrapper**, not `--yolo`.
-
-- Prefer dedicated worktree roots under a bridge workspace (e.g. project `grok-codex-bridge/worktrees`), not a dirty main tree.
-- Worktree owner must match the OAuth Windows user.
-- Long research invokes need a **long host shell timeout**, not only higher `-MaxTurns`.
-
-## Claude residue warning
-
-Grok may still read real-user `~/.claude/settings*.json` via the Windows profile path even when `HOME` is shadowed. If Claude is unused, archive `~/.claude`. `PowerShell(...)` rules produce skip warnings only.
+---
 
 ## Safety non-negotiables
 
-- Never print `auth.json` or tokens
-- Never use `--yolo` / `bypassPermissions` as a shortcut
-- Never write task cards into product repos
-- Never ship a multi-domain mega-card when split criteria match
-- Max one concurrent Grok executor until concurrency is forward-tested
-- Count each Grok invoke toward the first-round max of three child tasks
-- Grok `text` is never final acceptance by itself
+- Never print `auth.json`, API keys, or tokens
+- Never `--yolo` / `bypassPermissions` as convenience
+- Never put job PROMPT/RESULT into product git
+- Never overlapping writable ownership across parallel Grok writers
+- Never treat Grok RESULT/`text` as final acceptance
+- Prefer Mode A for product delivery; use Mode B only when its constraints fit

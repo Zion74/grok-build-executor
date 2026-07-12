@@ -4,12 +4,10 @@
 When delegating work to **Grok 4.5** from Codex / GPT orchestrators:
 
 1. **Do not** use native multi-agent / `spawn_agent` and claim the child is Grok.
-2. **Do** use `$grok-build-executor` after user approval of a **right-sized** task card.
-3. **Split large research/architecture work** into non-overlapping evidence cards before invoke; never one mega-card for whole-stack survey + all bugs + migration. See skill `references/task-sizing.md`.
-4. Write task cards only under `%USERPROFILE%\.grok-executor\task-cards\`.
-5. Invoke `scripts/invoke-grok-executor.ps1` with flags that match the card (`-ReadOnly`, `-AllowedCommandPrefix`, `-AllowWebSearch`, `-MaxTurns 60..80` for research) and prefer `-RequireCleanIsolation`.
-6. Use a long host shell timeout for research invokes (≥ 300s). Treat `stopReason: Cancelled` as failure even if exit code is 0; do not blind-retry—narrow or split.
-7. Treat returned JSON `text` as a lead; independently verify and re-run acceptance.
-8. Keep planning, merge, and completion authority on the orchestrator model.
-9. At most one concurrent Grok executor until concurrency is forward-tested.
+2. **Prefer Mode A (document handoff):** write `grok-agent-jobs/<project>/<job>/PROMPT.md` (+ optional child prompts / `MAIN_AGENT_PROMPT.md`). Human starts interactive Grok Build (or Grok 总控). Grok writes `RESULT.md`. Then you re-diff and re-test.
+3. **Mode B (headless CLI)** only for small clean-worktree cards via `$grok-build-executor` / `invoke-grok-executor.ps1` and `~/.grok-executor/task-cards/`.
+4. Split multi-domain research before headless invoke (`references/task-sizing.md`). Treat `stopReason: Cancelled` as failure.
+5. Parallel Grok writers need **non-overlapping** file ownership and RESULT preflight (no second writer if RESULT exists or slice is in-flight).
+6. Never trust Grok RESULT/`text` as completion; host shell timeouts and project `.mcp.json` (e.g. Figma) are common footguns — see `docs/COLLABORATION.md`.
+7. Keep planning, merge, and completion authority on the orchestrator model.
 <!-- grok-build-executor:end -->
