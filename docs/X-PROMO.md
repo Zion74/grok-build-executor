@@ -1,6 +1,6 @@
 # X / Twitter promo drafts
 
-Repo: https://github.com/weiwei-ctrl/grok-build-executor  
+Repo: https://github.com/Zion74/grok-build-executor  
 Deep dive: `docs/COLLABORATION.md`
 
 ---
@@ -23,7 +23,7 @@ Codex 原生子 agent 调不了 Grok。
 
 CLI/PS 直调 grok.exe 的坑也写了：参数被拆、Cancelled、超时、项目 .mcp.json 拖 Figma…
 
-GitHub: https://github.com/weiwei-ctrl/grok-build-executor
+GitHub: https://github.com/Zion74/grok-build-executor
 docs/COLLABORATION.md
 ```
 
@@ -61,7 +61,7 @@ Codex 只负责边界和验收。
 ```text
 Skill + 协议文档开源了：
 
-npx skills add weiwei-ctrl/grok-build-executor -g -y
+npx skills add Zion74/grok-build-executor -g -y
 
 读 docs/COLLABORATION.md
 欢迎 PR / 补充失败案例。
@@ -84,7 +84,7 @@ What worked for us:
 Headless CLI only for very tiny cards (smoke/one-liner). Default is PROMPT.md.
 
 Lessons from CLI/PS failures → docs/COLLABORATION.md
-https://github.com/weiwei-ctrl/grok-build-executor
+https://github.com/Zion74/grok-build-executor
 ```
 
 ---

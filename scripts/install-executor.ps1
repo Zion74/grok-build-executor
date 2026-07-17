@@ -166,7 +166,7 @@ Write-Step "Skill install hint for agents / humans"
 Write-Host @"
 If this skill is not already under ~/.agents/skills/grok-build-executor:
 
-  npx skills add weiwei-ctrl/grok-build-executor -g -y
+  npx skills add Zion74/grok-build-executor -g -y
 
 Or copy this folder to:
 

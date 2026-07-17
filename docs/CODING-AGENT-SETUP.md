@@ -27,7 +27,7 @@ Instructions for **Codex / Claude Code / Cursor / other coding agents** installi
 ### 1. Install skill package
 
 ```bash
-npx skills add weiwei-ctrl/grok-build-executor -g -y
+npx skills add Zion74/grok-build-executor -g -y
 ```
 
 If `npx skills` is unavailable, clone or copy this repository to:

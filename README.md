@@ -33,7 +33,7 @@ X drafts: **[docs/X-PROMO.md](docs/X-PROMO.md)**
 ## Install
 
 ```bash
-npx skills add weiwei-ctrl/grok-build-executor -g -y
+npx skills add Zion74/grok-build-executor -g -y
 ```
 
 Headless Mode B (rarely needed) also needs Grok Build CLI + SuperGrok OAuth into `~/.grok-executor` — see [docs/CODING-AGENT-SETUP.md](docs/CODING-AGENT-SETUP.md) and `scripts/install-executor.ps1`.
