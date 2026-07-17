@@ -27,7 +27,7 @@ Instructions for **Codex / Claude Code / Cursor / other coding agents** installi
 ### 1. Install skill package
 
 ```bash
-npx skills add Zion74/grok-build-executor -g -y
+npx skills add weiwei-ctrl/grok-build-executor -g -y
 ```
 
 If `npx skills` is unavailable, clone or copy this repository to:
@@ -84,7 +84,7 @@ If Grok stderr shows Claude `settings.local.json` noise and the user no longer u
 2. Write a **read-only** (evidence) task card under `~/.grok-executor/task-cards/`.
 3. Invoke `scripts/invoke-grok-executor.ps1` with `-ReadOnly -AllowedCommandPrefix git -RequireCleanIsolation`.
 4. Confirm JSON: `ok=true`, `model=grok-4.5`, `stopReason=EndTurn`.
-5. For write smoke (micro-edit): broken unit → `-WritablePath` + test prefix (not ReadOnly) → acceptance green → independent re-verify.
+5. For write smoke (micro-edit): broken unit 鈫?`-WritablePath` + test prefix (not ReadOnly) 鈫?acceptance green 鈫?independent re-verify.
 6. Prefer Mode A (`PROMPT.md` on the product tree) for anything beyond smoke.
 
 ### 7. Report back to the user
