@@ -80,11 +80,12 @@ If Grok stderr shows Claude `settings.local.json` noise and the user no longer u
 
 ### 6. Smoke test plan (after OAuth)
 
-1. Create a disposable clean git repo or worktree.
-2. Write a **read-only** task card under `~/.grok-executor/task-cards/`.
-3. Invoke `scripts/invoke-grok-executor.ps1` with `-ReadOnly -RequireCleanIsolation`.
+1. Use any **clean** git tree (empty throwaway repo, or product repo if status is clean). Independent worktree only if you need isolation from a dirty main tree.
+2. Write a **read-only** (evidence) task card under `~/.grok-executor/task-cards/`.
+3. Invoke `scripts/invoke-grok-executor.ps1` with `-ReadOnly -AllowedCommandPrefix git -RequireCleanIsolation`.
 4. Confirm JSON: `ok=true`, `model=grok-4.5`, `stopReason=EndTurn`.
-5. For write smoke: broken unit → allow one file → acceptance command green → independent re-verify.
+5. For write smoke (micro-edit): broken unit → `-WritablePath` + test prefix (not ReadOnly) → acceptance green → independent re-verify.
+6. Prefer Mode A (`PROMPT.md` on the product tree) for anything beyond smoke.
 
 ### 7. Report back to the user
 

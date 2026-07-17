@@ -1,6 +1,6 @@
 interface:
   display_name: "Grok Build Executor"
-  short_description: "Run bounded Grok 4.5 coding task cards safely"
-  default_prompt: "Use $grok-build-executor to run this approved task card in an isolated worktree and return test evidence."
+  short_description: "Default PROMPT.md on product tree; optional worktree; headless tiny only"
+  default_prompt: "Use $grok-build-executor Mode A on the product repo: job folder PROMPT.md with write globs + read-only git + acceptance commands; RESULT.md; re-verify. Independent worktree only if isolation is needed. Headless only for very small clean-tree tasks."
 policy:
   allow_implicit_invocation: false

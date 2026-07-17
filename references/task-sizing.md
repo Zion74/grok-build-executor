@@ -1,8 +1,9 @@
 # Task sizing and split playbook
 
-Forward-tested against real Grok 4.5 headless runs: **monolithic research cards frequently end with `stopReason: Cancelled` and a few-dozen-character preamble; split evidence cards of comparable total scope often return `EndTurn` with multi-kilobyte reports.**
+> **Primary path for real work is Mode A (`PROMPT.md`), not headless.**  
+> Use this file only if you are still running Mode B (very small cards) or need to understand why mega headless cards fail. For architecture surveys, multi-module analysis, migrations, or multi-file product work → **write job `PROMPT.md` / split into Mode A jobs**, do not default to a stack of headless cards.
 
-Use this file when the user asks for architecture survey, multi-module root-cause analysis, framework migration assessment, or any work that cannot be verified with one short acceptance command.
+Forward-tested against real Grok 4.5 headless runs: **monolithic research cards frequently end with `stopReason: Cancelled` and a few-dozen-character preamble; split evidence cards of comparable total scope often return `EndTurn` with multi-kilobyte reports.** Even then, interactive Grok via PROMPT is usually more stable.
 
 ## Hard limits of one executor run
 
@@ -15,7 +16,7 @@ Use this file when the user asks for architecture survey, multi-module root-caus
 | Web | off unless `-AllowWebSearch` | Task cards that demand official docs must opt in |
 | Concurrency | one process (mutex) | Queue cards; do not fan out parallel Grok executors yet |
 | Task card size | ≤ 64 KiB | Size is rarely the bottleneck; **work volume** is |
-| Resume | new session each invoke | Cancelled runs do **not** auto-continue; re-issue a smaller card |
+| Resume | wrapper = new session each invoke | Cancelled mega-cards do **not** “fix with --resume”; split or switch to Mode A. Optional `--resume` only for **tiny** EndTurn follow-ups (see `headless-recipes.md`) |
 
 Success in the wrapper means:
 
@@ -39,7 +40,7 @@ If unsure, prefer **two cards** over one.
 
 ## Split strategy (orchestrator owns the DAG)
 
-1. **Freeze baseline** once: commit SHA + clean worktree path shared by all cards.
+1. **Freeze baseline** once: commit SHA + a **clean** WorkingDirectory shared by all cards (product repo if clean; temp worktree only if main is dirty). Prefer Mode A for multi-card research instead of many headless cards.
 2. **Partition by evidence domain**, not by prose outline. Each card owns non-overlapping questions and path lists.
 3. **One primary artifact per card**: e.g. topology memo, root-cause matrix for one bug family, target seam design, external framework fit assessment.
 4. **Serial by default** (mutex). Only after concurrency is forward-tested may independent read-only cards run in parallel.
@@ -93,13 +94,15 @@ If unsure, prefer **two cards** over one.
 powershell -NoProfile -ExecutionPolicy Bypass -File `
   "$HOME\.agents\skills\grok-build-executor\scripts\invoke-grok-executor.ps1" `
   -TaskCardPath "$HOME\.grok-executor\task-cards\<card>.md" `
-  -WorkingDirectory "<clean-worktree>" `
+  -WorkingDirectory "<clean-product-repo-or-temp-worktree>" `
   -ReadOnly `
   -AllowedCommandPrefix "git" `
   -MaxTurns 80 `
   -RequireCleanIsolation
+# micro-edit: drop -ReadOnly; add -WritablePath 'dir/**' and test prefixes
 # add -AllowWebSearch only if the card names external evidence gaps
 # orchestrator shell timeout_ms >= 300000 (prefer 600000)
+# Prefer Mode A PROMPT.md for real architecture surveys
 ```
 
 ## Card authoring checklist

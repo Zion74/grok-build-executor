@@ -2,56 +2,69 @@
 
 Field notes from running **GPT‑5.6 Sol (Codex)** as planner/acceptor and **Grok 4.5 (Grok Build)** as executor on real product work. Suitable for publishing on GitHub / X (no secrets, no private source).
 
-## Two modes (pick by job size)
+## Two modes (default hard, exception narrow)
 
 | Mode | How it runs | Best for | Weak at |
 |---|---|---|---|
-| **A. Document handoff + interactive Grok** | Codex writes job files → human/Grok opens **PROMPT** in Grok Build UI → Grok writes **RESULT** → Codex re-verifies | Multi-file fixes, parallel subagents, long builds, dirty-tree work with exclusive ownership | Fully unattended CI without a human pasting the prompt |
-| **B. Headless CLI wrapper** (`invoke-grok-executor.ps1`) | Codex shells into isolated `GROK_HOME` + allowlisted `grok -p` | Small, clean worktrees; smoke tests; narrow read-only evidence cards | Mega research cards; long Docker builds; anything needing Grok’s full interactive subagent UI |
+| **A. Document handoff + interactive Grok** (**default**) | Codex writes job files → human/Grok opens **PROMPT** in Grok Build UI → Grok writes **RESULT** → Codex re-verifies | Almost everything: product slices, multi-file work, research, long builds, dirty trees, Grok 总控 + subagents | Fully unattended CI without a human pasting the prompt |
+| **B. Headless CLI wrapper** (**exception only**) | Codex shells into isolated `GROK_HOME` + allowlisted `grok -p` | **Very small** tasks only: executor smoke, one-liner / ≤~2 files on a **clean** git tree, tiny peek | Anything non-tiny: product work, mega research, Docker, multi-file, dirty trees |
 
-**Recommended default for real product slices:** Mode A.  
-**Keep Mode B** for automated micro-executions and isolation-hardened runs.
+**Default always: Mode A (`PROMPT.md`).** Field experience: more stable and better results than headless.  
+**Mode B only when the task is truly tiny.** When in doubt → Mode A. Do not default to headless.  
+**Independent git worktree is optional**, not a default. Mode A runs on the product tree. Mode B only needs a **clean** tree (product repo if clean, or a temp worktree if main is dirty).
 
 Both modes share the same governance:
 
 1. Sol plans and owns merge/complete.
-2. Grok stays inside explicit file ownership.
+2. Grok stays inside explicit file ownership (read-wide, write-narrow).
 3. Grok’s narrative (`RESULT` / JSON `text`) is a **lead**, never acceptance.
 4. Sol personally inspects diff and re-runs acceptance commands.
+5. Give enough permissions to finish (git read + acceptance commands); forbid irreversible ops.
 
 ---
 
-## Mode A — Document handoff (current preferred)
+## Mode A — Document handoff (default; prefer this)
 
 ### Layout
 
 ```text
-grok-agent-jobs/
-  README.md
-  <project>/
-    <job-id>/
-      PROMPT.md              # what Grok (or Grok coordinator) executes
-      RESULT.md              # what Grok writes back
-      MAIN_AGENT_PROMPT.md   # optional: what Sol does after RESULT lands
-      PROMPT-01.md …         # optional: exclusive sub-slices
-      RESULT-01.md …
+<product-repo>/
+  .grok_subagent/                      # gitignored
+    <YYYYMMDD-HHMM-slug>/              # one named folder per task
+      PROMPT.md                        # what Grok (or Grok coordinator) executes
+      RESULT.md                        # what Grok writes back
+      MAIN_AGENT_PROMPT.md             # optional: Sol post-review checklist
+      MAIN_AGENT_REVIEW_0N.md          # optional: Sol round follow-ups
+      PROMPT-01.md / RESULT-01.md      # optional exclusive sub-slices
+      RESULT_REVIEW_*.md               # optional review artifacts
 ```
 
-Example root used in practice:
+Example:
 
 ```text
-D:\Projects\grok-agent-jobs\<project>\<YYYYMMDD-HHMM-slug>\
+<path/to/product>/.grok_subagent/20260712-2320-p0-fallback-stream-root-fix/
 ```
 
-Product code stays in the real repo(s). **Job artifacts never go into the product git tree.**
+Product **code** stays in normal source paths. Job **notes** live under `.grok_subagent/` and must be **gitignored** (never committed).  
+Legacy fallback: `~/grok-agent-jobs/<project>/<job-id>/` only if product-root jobs are impractical.
 
 ### Roles
 
 | Actor | Does |
 |---|---|
-| **Codex / Sol** | Creates job folder, writes `PROMPT*.md`, defines ownership + acceptance, later reads `RESULT*.md`, reviews full diff, re-runs tests, commits only after evidence |
-| **Human** | Pastes `PROMPT.md` into Grok Build (or starts Grok on that file); can close Grok windows once results are on disk |
+| **Codex / Sol** | Decides **new vs reuse** job folder; writes `PROMPT*.md` + follow-ups; defines ownership + acceptance; later reads `RESULT*.md`, reviews full product diff, re-runs tests; **tells human when to open/close Grok windows**; commits only after evidence |
+| **Human** | Opens `PROMPT.md` in Grok Build (new session or continue, as Sol says); closes Grok windows only when Sol says RESULT is on disk / job done (or user abandons) |
 | **Grok Build (interactive)** | Executes prompt; may spawn **non-overlapping** subagents; writes `RESULT.md`; does not commit/push/deploy unless prompt allows (default: forbid) |
+
+### Job lifecycle (new / reuse / close)
+
+See skill body section **Job lifecycle**. Summary:
+
+| Action | When |
+|---|---|
+| **New** `.grok_subagent/<slug>/` | New goal, new ownership set, parallel unrelated track, or prior job closed |
+| **Reuse** same folder | Same goal: fix round, blocked→continue, or multi-slice under one 总控 |
+| **Close Grok window** | After `RESULT.md` (and child RESULTs) on disk; safe after Sol accept; **not** while mid-edit without RESULT |
 
 ### Coordinator pattern (Grok as 总控)
 
@@ -69,13 +82,15 @@ For multiple slices:
 
 ### Minimal `PROMPT.md` contract
 
-- Working directories / branches
-- Writable file list (exclusive)
-- Forbidden ops (reset/clean/commit/push/deploy/secrets)
+- Working directories / branches (**product repo by default**; independent worktree only if Sol created one)
+- Job folder: `<product>/.grok_subagent/<YYYYMMDD-HHMM-slug>/` (gitignored)
+- **Permission pack:** read-wide; writable **directory** globs preferred; always allow read-only git (`status`/`diff`/`log`); exact acceptance commands
+- Forbidden ops (reset/clean/commit/push/deploy/secrets) — hard list
 - Implementation or analysis requirements
-- Exact acceptance commands
-- Exact path for `RESULT.md`
+- Exact path for `RESULT.md` **in the same job folder**
 - Final terminal reply: compact pointer JSON only (optional)
+
+Do **not** default the job to read-only when Grok must implement. Starving `git status` or tests causes silent failure and worse output.
 
 ### Minimal `RESULT.md` contract
 
@@ -97,12 +112,28 @@ For multiple slices:
 - Grok keeps a full interactive agent loop (subagents, long builds, multi-step recovery).
 - No Codex shell `timeout_ms` killing a 5–10 minute Docker build mid-flight.
 - No PowerShell argument-splitting bugs around `grok.exe`.
+- Works on a **dirty product tree** with exclusive ownership (no mandatory worktree).
 - Private-source policy: Codex may be blocked from **pushing** repo bytes into external headless calls; human-started Grok already has local disk access.
 - Results survive closing the Grok UI once files are written.
 
+### Optional independent worktree (Mode A or B)
+
+Not required. Use when: main tree too dirty for Mode B, true long parallel forks, or high-risk experiments you may discard.
+
+Sol-owned merge flow:
+
+1. `git worktree add … -b gw/job-<id> <base>`
+2. Grok works only there; RESULT under product `.grok_subagent/<task>/`
+3. Sol verifies inside worktree → **cherry-pick / merge** into main line
+4. Re-run acceptance on main line → remove worktree
+
+Never `reset --hard` the shared main tree to clean up.
+
 ---
 
-## Mode B — Headless CLI wrapper (still useful)
+## Mode B — Headless CLI wrapper (very small only)
+
+**Do not use for normal product work.** Prefer Mode A unless the job is a smoke or one-liner-scale card.
 
 Script: `scripts/invoke-grok-executor.ps1`  
 Skill entry: `$grok-build-executor`
@@ -114,14 +145,32 @@ Properties:
 - `dontAsk` + path/command allowlists
 - Task cards only under `~/.grok-executor/task-cards/`
 - JSON envelope on stdout; `stopReason` must be `EndTurn`
+- Working directory must be a **clean** git tree — **product repo if clean is enough**; separate worktree only if main is dirty
 
-Use for:
+Eligible only for:
 
-- Micro edits on a **clean** disposable worktree
-- Read-only evidence cards (after sizing/split)
 - Smoke tests of the executor itself
+- One-liner or ≤ ~2 files on a clean tree
+- Tiny read-only peeks (quality work still → Mode A)
 
-See `references/task-sizing.md` for split rules (mega-cards often return `Cancelled`).
+Permission presets:
+
+| Preset | Flags | Notes |
+|---|---|---|
+| evidence | `-ReadOnly -AllowedCommandPrefix git` | Default-tight is OK for peeks |
+| micro-edit | `-WritablePath 'dir/**'` + git + test prefixes | Do not leave real edits on ReadOnly only |
+| opinion | ReadOnly / pure `-p` | Second opinion; label as Grok’s words |
+
+**Borrowed from community headless skills (kept Mode A default):**
+
+- Long prompts in **files** (not shell strings)
+- Host **timeout** ≥ wall time
+- JSON `text` as summary only; orchestrator still re-verifies
+- Optional `--resume` / `--json-schema` for **tiny** peeks only
+- **Not** borrowed: headless-as-default, `--always-approve` / yolo, shared unisolated home for automation
+
+If the work needs quality, multi-file ownership, long tools, or Grok subagents → **write `PROMPT.md`**, do not “fix” with more headless cards.  
+See `references/task-sizing.md` and `references/headless-recipes.md`.
 
 ---
 
@@ -191,12 +240,12 @@ See `references/task-sizing.md` for split rules (mega-cards often return `Cancel
 
 ## Suggested public workflow (copy for X / README)
 
-1. Sol creates `grok-agent-jobs/<project>/<job>/PROMPT.md` (+ optional child prompts).
+1. Sol ensures `.grok_subagent/` is gitignored; creates `.grok_subagent/<YYYYMMDD-HHMM-slug>/PROMPT.md` (+ optional child prompts / review files).
 2. Human opens Grok Build, pastes/opens that PROMPT (or starts Grok 总控 on the orchestrator file).
-3. Grok writes `RESULT.md` (and code in the product tree within ownership).
+3. Grok writes `RESULT.md` in the job folder (and code in the product tree within ownership).
 4. Human tells Sol “Grok finished” or Sol detects RESULT mtime.
-5. Sol runs `MAIN_AGENT_PROMPT` logic: untrusted RESULT → full diff → re-test → accept/reject.
-6. Only then commit/push/deploy under user authority.
+5. Sol runs `MAIN_AGENT_PROMPT` logic: untrusted RESULT → full product diff → re-test → accept/reject.
+6. Only then commit/push/deploy **product code** under user authority — never commit `.grok_subagent/`.
 
 CLI wrapper remains for small, clean, automated slices—not as the only integration path.
 
@@ -210,3 +259,5 @@ CLI wrapper remains for small, clean, automated slices—not as the only integra
 - Overlapping writable files across parallel agents
 - Committing secrets into `.mcp.json` or task cards
 - `git reset --hard` to “clean up” after a Grok experiment on a shared dirty tree
+- Forcing a new independent worktree for every Grok job when Mode A on the product tree would do
+- Defaulting Mode A prompts to read-only / no git / no tests so Grok cannot finish

@@ -1,6 +1,6 @@
 # X / Twitter promo drafts
 
-Repo: https://github.com/Zion74/grok-build-executor  
+Repo: https://github.com/weiwei-ctrl/grok-build-executor  
 Deep dive: `docs/COLLABORATION.md`
 
 ---
@@ -12,16 +12,18 @@ Codex 原生子 agent 调不了 Grok。
 
 我们踩完坑后的稳定配合：
 
-① Codex(Sol) 写 job 目录
-   PROMPT.md → 人类/Grok Build 打开
-   RESULT.md → Sol 亲审 diff + 重跑测试
+① 默认走文档交接（更稳、效果更好）
+   Codex(Sol) 写 job 目录 PROMPT.md
+   → 人类/Grok Build 打开 → RESULT.md
+   → Sol 亲审 diff + 重跑测试
 
 ② 需要并行时：Grok 总控 + 不重叠 ownership 的子 agent
-③ 小任务才用 headless CLI wrapper（隔离 SuperGrok OAuth）
+③ headless 只留给极小任务（冒烟/一行改/干净 git 树；主仓 clean 即可，不必硬建 worktree）
+④ 默认在产品仓干活：宽读窄写 + 只读 git + 验收命令；独立 worktree 可选
 
 CLI/PS 直调 grok.exe 的坑也写了：参数被拆、Cancelled、超时、项目 .mcp.json 拖 Figma…
 
-GitHub: https://github.com/Zion74/grok-build-executor
+GitHub: https://github.com/weiwei-ctrl/grok-build-executor
 docs/COLLABORATION.md
 ```
 
@@ -51,7 +53,7 @@ Codex 只负责边界和验收。
 • Codex timeout 掐死长任务
 • 项目 .mcp.json 的 Figma MCP 空等 30s
 
-所以大改动改走 PROMPT→RESULT 文件协议。
+所以现在几乎一律走 PROMPT→RESULT；headless 仅极小任务。
 ```
 
 **3/3**
@@ -59,7 +61,7 @@ Codex 只负责边界和验收。
 ```text
 Skill + 协议文档开源了：
 
-npx skills add Zion74/grok-build-executor -g -y
+npx skills add weiwei-ctrl/grok-build-executor -g -y
 
 读 docs/COLLABORATION.md
 欢迎 PR / 补充失败案例。
@@ -79,10 +81,10 @@ What worked for us:
 • Grok writes RESULT.md
 • Sol re-diff + re-test (never trust Grok “ok”)
 
-Headless CLI only for tiny clean-worktree cards.
+Headless CLI only for very tiny cards (smoke/one-liner). Default is PROMPT.md.
 
 Lessons from CLI/PS failures → docs/COLLABORATION.md
-https://github.com/Zion74/grok-build-executor
+https://github.com/weiwei-ctrl/grok-build-executor
 ```
 
 ---
